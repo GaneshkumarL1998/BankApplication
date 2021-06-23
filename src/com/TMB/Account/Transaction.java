@@ -1,11 +1,9 @@
 package com.TMB.Account;
-
-import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class Transaction implements Serializable{
+public class Transaction{
 	static DateFormat dateformat=new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
 	private double current_bal;
 	private double withdraw_amt;
@@ -54,7 +52,28 @@ public class Transaction implements Serializable{
 		String str=dateformat.format(transaction_date);
 		this.transaction_date = str;
 	}
-	
-		
+	public void printTrans_History() {
+		//System.out.println("transaction details account AccNo="+this.getAccno());
+		//System.out.println("S.no  Last_balance     Withdraw_Amount  Deposit_Amount   Current_Balance  transaction_date");
+			
+			String str=String.valueOf(getCurrent_bal());
+			System.out.print(str);
+			for(int k=str.length();k<17;k++)
+				System.out.print(" ");
+			str=String.valueOf(getWithdraw_amt());
+			System.out.print(str);
+			for(int k=str.length();k<17;k++)
+				System.out.print(" ");
+			str=String.valueOf(getDeposit_amt());
+			System.out.print(str);
+			for(int k=str.length();k<17;k++)
+				System.out.print(" ");
+			str=String.valueOf(getRem_bal());
+			System.out.print(str);
+			for(int k=str.length();k<17;k++)
+				System.out.print(" ");
+			System.out.print(getTransaction_date());
+			System.out.println();
+		}	
 	
 }

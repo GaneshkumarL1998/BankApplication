@@ -8,7 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
 
-public class AccountDataClass implements Serializable{
+public class AccountDataClass{
 	public static long Savings_Acc_no;
 	public static long Loan_Acc_no;
 	public static int empid;
@@ -17,7 +17,7 @@ public class AccountDataClass implements Serializable{
 	public static int bikeloanno;
 	public static int carloanno;
 	public static int personalloanno;
-	public static File fi=new File("C:\\Users\\GANESH\\Desktop\\ZohoBank\\Accountdata.txt");
+	public static File fi=new File("C:\\Users\\GANESH\\Desktop\\ZohoBank1\\Accountdata.txt");
 	public static void readfile() throws IOException
 	{
 		if(fi.exists()==false)

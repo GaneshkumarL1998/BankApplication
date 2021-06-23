@@ -1,12 +1,12 @@
 package com.TMB.Admin;
 
-import java.io.Serializable;
-public interface AdminInterface extends Serializable{
+public interface AdminInterface{
 	AdminInterface login();
 	void adduser();
 	void removeuser();
 	void updateuser();
 	void searchusers();
-	void changePassword();
+	void updateAdminDetails();
 	void viewAllUsers();
+	void printAdminDetails();
 }

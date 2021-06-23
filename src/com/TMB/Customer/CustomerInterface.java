@@ -1,8 +1,7 @@
 package com.TMB.Customer;
 
-import java.io.Serializable;
 
-public interface CustomerInterface extends Serializable{
+public interface CustomerInterface{
 	 CustomerInterface login();
 	 void withdraw();
 	 void balanceEnquiry();

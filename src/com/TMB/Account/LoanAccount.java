@@ -1,16 +1,12 @@
 package com.TMB.Account;
 
-import java.io.Serializable;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Scanner;
 
-public class LoanAccount extends Account implements Serializable{
+public class LoanAccount extends Account{
 	static DateFormat dateformat=new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
-	private Loan loanbehaviour;
 	private long accno;
 	private double accbal;
 	private String loanID;
@@ -20,27 +16,36 @@ public class LoanAccount extends Account implements Serializable{
 	private double month;
 	private double totalpay;
 	private String loan_Sanction_date;
-	private List<Transaction> trans_history=new LinkedList<Transaction>();
-	public LoanAccount(Loan loanbehaviour,long accno,double accbal,String loanID
-			,double monthlyInterest,double monthlyprinciple,double year,double totalpay,Date date)
+	public String custid;
+	private Transaction ts;
+	public LoanAccount(String custid,long accno,double accbal,String loanID
+			,double monthlyInterest,double monthlyprinciple,double monthlytotal,double month,double totalpay,Date date)
 	{
-		this.loanbehaviour=loanbehaviour;
+		this.custid=custid;
 		this.accno=accno;
 		this.accbal=(double)Math.round(accbal*100)/100;
 		this.loanID=loanID;
 		this.monthlyInterest=(double)Math.round(monthlyInterest*100)/100;
 		this.monthlyprinciple=(double)Math.round(monthlyprinciple*100)/100;
-		this.monthlytotalpay=(double)Math.round((monthlyInterest+monthlyprinciple)*100)/100;
-		this.month=year*12;
+		this.monthlytotalpay=monthlytotal;
+		this.month=month;
 		this.totalpay=(double)Math.round(totalpay*100)/100;
 		this.loan_Sanction_date=dateformat.format(date);
-		trans_history.add(new Transaction(0,accbal, 0, accbal, date));
+		
+	}
+	public Transaction getTransaction()
+	{
+		return ts;
+	}
+	public String getCustid()
+	{
+		return custid;
 	}
 	public double getMonth() {
 		return month;
 	}
-	public void setMonth(double year) {
-		this.month=year*12;
+	public void setMonth(double month) {
+		this.month=month;
 	}
 	public String getLoan_Sanction_date() {
 		return loan_Sanction_date;
@@ -66,18 +71,6 @@ public class LoanAccount extends Account implements Serializable{
 	}
 	public void setMonthlytotalpay(double monthlytotalpay) {
 		this.monthlytotalpay = monthlytotalpay;
-	}
-	public List<Transaction> getTrans_history() {
-		return trans_history;
-	}
-	public void setTrans_history(List<Transaction> trans_history) {
-		this.trans_history = trans_history;
-	}
-	public Loan getLoanbehaviour() {
-		return loanbehaviour;
-	}
-	public void setLoanbehaviour(Loan loanbehaviour) {
-		this.loanbehaviour = loanbehaviour;
 	}
 	public String getLoanID() {
 		return loanID;
@@ -114,7 +107,7 @@ public class LoanAccount extends Account implements Serializable{
 		accbal-=(double)Math.round(monthlyprinciple*100)/100;
 		accbal=(double)Math.round(accbal*100)/100;
 		month-=1;
-		trans_history.add(new Transaction(accbal+amt,0,amt, accbal,new Date()));
+		TransactionDB.insertTransactionDetails(new Transaction(accbal+amt,0,amt, accbal,new Date()), accno);
 		System.out.println("Loan for this month is paid successfully");
 	}
 

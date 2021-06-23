@@ -1,34 +1,30 @@
 package com.TMB.Employee;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
-import java.util.Random;
 import java.util.Scanner;
+
+
 import com.TMB.Account.Account;
 import com.TMB.Account.BikeLoan;
 import com.TMB.Account.CarLoan;
 import com.TMB.Account.HomeLoan;
 import com.TMB.Account.Loan;
 import com.TMB.Account.LoanAccount;
+import com.TMB.Account.LoanAccountDB;
 import com.TMB.Account.LoanFactory;
 import com.TMB.Account.PersonalLoan;
+import com.TMB.Account.SavingsAccount;
+import com.TMB.Account.SavingsAccountDB;
+import com.TMB.Account.TransactionDB;
 import com.TMB.Customer.Customer;
+import com.TMB.Customer.CustomerDB;
 import com.TMB.datafiles.AccountDataClass;
-import com.TMB.datafiles.DataClass;
 
-public class Employee implements EmployeeInterface, Serializable{
-	private final static long serialVersionUID=2L;
+
+
+public class Employee implements EmployeeInterface{
 	private String userid;
 	private String password;
 	private int empid;
@@ -51,18 +47,6 @@ public class Employee implements EmployeeInterface, Serializable{
 	}
 	public Employee() {
 		super();
-	}
-	
-	private void writeObject(ObjectOutputStream oos)throws Exception
-	{
-		oos.defaultWriteObject();
-		String epass="rama"+password;
-		oos.writeObject(epass);
-	}
-	private void readObject(ObjectInputStream ois)throws Exception
-	{
-		ois.defaultReadObject();
-		password=((String)ois.readObject()).substring(4);
 	}
 	
 	public String getUserid() {
@@ -144,44 +128,34 @@ public class Employee implements EmployeeInterface, Serializable{
 	
 	public EmployeeInterface login()
 	{
-		ArrayList<Employee> list=DataClass.employee;
-		boolean check=true;
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter your user id");
 		String e_userid=sc.nextLine();
 		System.out.println("Enter your Current Password");
 		String e_password=sc.nextLine();
-		Employee ad=null;
-		for(Object ob:list)
+		Employee ad=EmployeeDB.selectEmployee(e_userid);
+		if(ad!=null)
 		{
-			Employee cs=(Employee)ob;
-			if(e_userid.equals(cs.getUserid()))
-			{	
-				check=false;
-				if(e_password.equals(cs.getPassword()))
-				{	
-					
-					System.out.println("Successfully loggedin...");ad=cs;
-					break;
-				}
-				else
-				{
-					System.out.println("Sorry your password is incorrect...");
-					break;
-				}
+			if(ad.getPassword().equals(e_password))
+			{
+				return ad;
 			}
-				
+			else
+			{
+				System.out.println("Sorry your password is wrong...");
+			}
 		}
-		if(check==true)
-			System.out.println("Sorry this employee id is wrong..");
-		return ad;
+		else 
+		{
+			System.out.println("Sorry this userid is invalid...");
+		}
+		return null;
 	}
 	public void adduser()
 	{	
 		long accno=AccountDataClass.Savings_Acc_no++;
 		String custid=""+AccountDataClass.customerid;
 		AccountDataClass.customerid++;
-		boolean check=true;
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter the Account holder name");
 		String acc_name=sc.nextLine();
@@ -229,11 +203,19 @@ public class Employee implements EmployeeInterface, Serializable{
 			password=password+(int)(Math.random()*10);
 			n++;
 		}
-		ArrayList<Customer> list=DataClass.customer;
-		//String userid, String password, String name, long mobileno, String dOB, String emailid,long accno,double accbal
-		list.add(new Customer(custid,password,acc_name,acc_mobile,acc_DOB,acc_email,accno,accbal));
-		System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-		list.get(list.size()-1).printCustomer();
+		//String userid, String password, String name, long mobileno, String dOB, String emailid,ArrayList<Long>acc		
+		Customer cust=new Customer(custid,password,acc_name,acc_mobile,acc_DOB,acc_email);
+		
+		if(CustomerDB.insertCustomer(cust)==true)
+		{
+			SavingsAccountDB.insertAccount(new SavingsAccount(accno,accbal,custid));
+			System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
+			cust.printCustomer();
+		}
+		else
+		{
+			System.out.println("Sorry data is not inserted ...");
+		}
 	}
 	public boolean isLeap(int year){
 		return(((year%4==0)&&(year%100!=0))||(year%400==0));
@@ -260,174 +242,171 @@ public class Employee implements EmployeeInterface, Serializable{
 	}
 	public void removeuser()
 	{
-		boolean check=true;
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter the customer id to remove");
 		String custid=sc.nextLine();
 		System.out.println("Enter the customer name");
 		String acc_name=sc.nextLine();
-		ArrayList<Customer> list=DataClass.customer;
-		for(int i=0;i<list.size();i++)
+		Customer cs=CustomerDB.selectCustomer(custid);		
+		if(cs!=null)
 		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getUserid().equals(custid))
+			if(cs.getName().equalsIgnoreCase(acc_name))
 			{
-				if( cs.getName().equalsIgnoreCase(acc_name))
+				ArrayList<Account> ac=LoanAccountDB.selectAccount(custid);
+				if(ac.size()<=0)
 				{
-					list.remove(i);System.out.println("Removed successfully...");check=false;break;
+					CustomerDB.removeCustomer(custid);
+					SavingsAccountDB.deleteAccount(SavingsAccountDB.selectAccount(custid).getAccno());
 				}
 				else
 				{
-					System.out.println("account holder name is wrong");check=false;break;
+					System.out.println("Sorry you still have loan..please pay it and then close the account");
 				}
 			}
+			else
+			{
+				System.out.println("account holder name is wrong");
+			}
 		}
-		if(check==true)
+		else
 			System.out.println("this details is not available");
 	}
 	public void updateuser()
 	{
-		boolean check=true;
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter the customerid");
 		String custid=sc.nextLine();
 		System.out.println("Enter the Account holder name");
 		String acc_name=sc.nextLine();
-		ArrayList<Customer> list=DataClass.customer;
-		for(int i=0;i<list.size();i++)
+		Customer cs=CustomerDB.selectCustomer(custid);
+		if(cs!=null)
 		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getUserid().equals(custid))
+			if( cs.getName().equalsIgnoreCase(acc_name))
 			{
-				if( cs.getName().equalsIgnoreCase(acc_name))
+				System.out.println("Enter 1.name update 2.mobile number update 3.emailid update 4.pin update");
+				int choice=sc.nextInt();sc.nextLine();
+				switch(choice)
 				{
-					System.out.println("Enter 1.name update 2.mobile number update 3.emailid update 4.pin update");
-					int choice=sc.nextInt();sc.nextLine();
-					switch(choice)
-					{
-					case 1:System.out.println("Enter your new update in name");
-							String newname=sc.nextLine();
-							list.get(i).setName(newname);
-							System.out.println("Updated successfully");check=false;break;
-					case 2:long acc_mobile;
-							while(true)
-							{
-								acc_mobile=sc.nextLong();
-								sc.nextLine();
-								if(String.valueOf(acc_mobile).length()==10)
-									break;
-								else
-									System.out.println("Sorry mobile number must be in 10 digits.Re-enter mobileno");
-							}
-							list.get(i).setMobileno(acc_mobile);
-							System.out.println("Updated successfully");check=false;break;
-					case 3:String acc_email="";
-							while(acc_email.contains("@")!=true)
-							{
-								System.out.println("Enter the employee email id");
-								acc_email=sc.nextLine();
-								if(acc_email.contains("@")==false)
-									System.out.println("mail id must contails @ operator");
-							}
-							list.get(i).setEmailid(acc_email);
-							System.out.println("Updated successfully");check=false;break;
-					case 4:System.out.println("Enter your new pin number");
-							String newpin=sc.nextLine();
-							list.get(i).setPassword(newpin);
-							System.out.println("Updated successfully");check=false;break;
-					default :System.out.println("Invalid input");check=false;
-					}	
-				}
-				else
-				{
-					System.out.println("account holder name is wrong");check=false;break;
-				}
+				case 1:System.out.println("Enter your new update in name");
+						String newname=sc.nextLine();
+						cs.setName(newname);
+						CustomerDB.updateCustomer(cs);
+						System.out.println("Name Updated successfully");break;
+				case 2:long acc_mobile;
+						while(true)
+						{System.out.println("Enter the new Mobile number");
+							acc_mobile=sc.nextLong();
+							sc.nextLine();
+							if(String.valueOf(acc_mobile).length()==10)
+								break;
+							else
+								System.out.println("Sorry mobile number must be in 10 digits.Re-enter mobileno");
+						}
+						cs.setMobileno(acc_mobile);
+						CustomerDB.updateCustomer(cs);
+						System.out.println("mobile no Updated successfully");break;
+				case 3:String acc_email="";
+						while(acc_email.contains("@")!=true)
+						{
+							System.out.println("Enter the employee email id");
+							acc_email=sc.nextLine();
+							if(acc_email.contains("@")==false)
+								System.out.println("mail id must contails @ operator");
+						}
+						cs.setEmailid(acc_email);CustomerDB.updateCustomer(cs);
+						System.out.println("Emailid Updated successfully");break;
+				case 4:System.out.println("Enter your new pin number");
+						String newpin=sc.nextLine();
+						cs.setPassword(newpin);CustomerDB.updateCustomer(cs);
+						System.out.println("Pin Number Updated successfully");break;
+				default :System.out.println("Invalid input");
+				}	
+			}
+			else
+			{
+				System.out.println("account holder name is wrong");
 			}
 		}
-		if(check==true)
+		else
 			System.out.println("this details is not available");
 	}
 	
 	public void searchusers()
 	{
 		Scanner sc=new Scanner(System.in);
-		System.out.println("search customer details Press 1.By customerid 2.accountholder name 3.mobileno 4.emailid 5.Account number");
+		System.out.println("search customer details Press 1.By customerid 2.accountholder name 3.mobileno 4.emailid");
 		int num=sc.nextInt();sc.nextLine();
-		ArrayList<Customer> list=DataClass.customer;
 		switch(num)
 		{
-		case 1:searchbycustid(list);break;
-		case 2:searchbyname(list);break;
-		case 3:searchbymobile(list);break;
-		case 4:searchbyemailid(list);break;
-		case 5:searchbyaccno(list);break;
+		case 1:System.out.println("Enter customerid of accountholer");String custid=sc.nextLine();
+				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
+				CustomerDB.searchCustomer("custid",custid);break;
+		case 2:System.out.println("Enter Name of accountholer");String name=sc.nextLine();
+				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
+				CustomerDB.searchCustomer("c_name",name);break;
+		case 3:System.out.println("Enter mobile no of accountholer");long mobileno=sc.nextLong();sc.nextLine();
+				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
+				CustomerDB.searchCustomer("phoneno",mobileno);break;
+		case 4:System.out.println("Enter emailid of accountholer");String emailid=sc.nextLine();
+				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
+				CustomerDB.searchCustomer("emailid",emailid);break;
 		default:System.out.println("Invalid input");
 		}
 	}
 	public void changePassword()
 	{
-		boolean check=true;
 		Scanner sc=new Scanner(System.in);
 		String e_userid=this.getUserid();
 		System.out.println("Enter your Current Password");
 		String e_password=sc.nextLine();
-		ArrayList<Employee> list=DataClass.employee;
-		//while(list==null)
-		{
-			for(Object ob:list)
+		Employee cs=EmployeeDB.selectEmployee(e_userid);		
+		if(cs!=null)
+		{	
+			if(e_password.equals(cs.getPassword()))
 			{
-				Employee cs=(Employee)ob;
-				if(e_userid.equals(cs.getUserid()))
-				{	
-					check=false;
-					if(e_password.equals(cs.getPassword()))
-					{
-						System.out.println("Enter your new password");
-						String password1=sc.nextLine();
-						System.out.println("Re-enter your password");
-						String password2=sc.nextLine();
-						if(password1.equals(password2))
-						{
-							cs.setPassword(password1);
-							System.out.println("Your new password ="+password1);
-						}
-						else
-							System.out.println("Sorry your new passwords are not matched...both are different");
-						break;
-						
-					}
-					else
-					{
-						System.out.println("Sorry your password is incorrect...");
-						break;
-					}
+				System.out.println("Enter your new password");
+				String password1=sc.nextLine();
+				System.out.println("Re-enter your password");
+				String password2=sc.nextLine();
+				if(password1.equals(password2))
+				{
+					cs.setPassword(password1);
+					EmployeeDB.updateEmployee(cs);
 				}
-					
+				else
+					System.out.println("Sorry your new passwords are not matched...both are different");
 			}
-			//list=(ArrayList)ois.readObject();
+			else
+			{
+				System.out.println("Sorry your password is incorrect...");
+			}
 		}
-		if(check==true)
-			System.out.println("Sorry this employee id is wrong..");
+		else
+			System.out.println("Sorry this employee id is invalid..");
 	}
 	public void giveloan()
 	{
-		boolean check=true;
 		long loanaccno=0;
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter the customer id");
 		String custid=sc.nextLine();
 		System.out.println("Enter the Account holder name");
 		String acc_name=sc.nextLine();
-		ArrayList<Customer> list=DataClass.customer;
-		for(int i=0;i<list.size();i++)
+		Customer cs=CustomerDB.selectCustomer(custid);
+		if(cs!=null)
 		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getUserid().equals(custid))
+			if( cs.getName().equalsIgnoreCase(acc_name))
 			{
-				if( cs.getName().equalsIgnoreCase(acc_name))
+				System.out.println("Enter your Loan amount");
+				double amt=sc.nextDouble();sc.nextLine();
+				double accbal=0;
+				ArrayList<Account> ac=LoanAccountDB.selectAccount(custid);
+				for(int j=0;j<ac.size();j++)
 				{
-					System.out.println("Enter your Loan amount");
-					double amt=sc.nextDouble();sc.nextLine();
+					accbal=accbal+ac.get(j).getAccbal();
+				}
+				if(amt+accbal<=500000)
+				{
 					System.out.println("Enter the no of year to pay the loan");
 					double year=sc.nextDouble();sc.nextLine();
 					Loan loantype=null;
@@ -439,283 +418,235 @@ public class Employee implements EmployeeInterface, Serializable{
 						loantype=LoanFactory.selectLoan(num);
 					}
 					String loanid="";int loanno;
-					
-					double accbal=0;
-					for(int j=1;j<cs.getAccount().size();j++)
+					loanaccno=AccountDataClass.Loan_Acc_no++;
+					switch(num)
 					{
-						accbal=accbal+cs.getAccount().get(j).getAccbal();
+						case 1: loanno=AccountDataClass.houseloanno++;
+								loanid="HL0"+loanno;break;
+						case 2: loanno=AccountDataClass.carloanno++;
+								loanid="CL0"+loanno;break;
+						case 3: loanno=AccountDataClass.bikeloanno++;
+								loanid="BL0"+loanno;break;
+						case 4: loanno=AccountDataClass.personalloanno++;
+								loanid="PL0"+loanno;break;
 					}
-					if(amt+accbal<=500000)
-					{
-						loanaccno=AccountDataClass.Loan_Acc_no++;
-						switch(num)
-						{
-							case 1: loanno=AccountDataClass.houseloanno++;
-									loanid="HL0"+loanno;break;
-							case 2: loanno=AccountDataClass.carloanno++;
-									loanid="CL0"+loanno;break;
-							case 3: loanno=AccountDataClass.bikeloanno++;
-									loanid="BL0"+loanno;break;
-							case 4: loanno=AccountDataClass.personalloanno++;
-									loanid="PL0"+loanno;break;
-						}
-						double interest=(double)Math.round(amt*year*loantype.getLoanRate())/100;
-						double totalpay=amt+interest;
-						double monthlyprinciple=(double)Math.round(amt*100/(12*year))/100;
-						double monthlyinterest=(double)Math.round(interest*100/(12*year))/100;
-						
-						cs.getAccount().add(new LoanAccount(loantype, loanaccno, amt, loanid,monthlyinterest,monthlyprinciple, year, totalpay, new Date()));
-						System.out.println("Loan is sanctioned successfully.....");
-						int index=cs.getAccount().size()-1;
-						System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-						cs.getAccount().get(index).printLoanDetails();
-					}
-					else 
-						System.out.println("Sorry max loan limit is Rs5,00,000 but you already take Rs"+accbal);
-					check=false;break;
+					double interest=(double)Math.round(amt*year*loantype.getLoanRate())/100;
+					double totalpay=amt+interest;
+					double monthlyprinciple=(double)Math.round(amt*100/(12*year))/100;
+					double monthlyinterest=(double)Math.round(interest*100/(12*year))/100;
+					double monthlytotalpay=monthlyinterest+monthlyprinciple;
+					LoanAccount la=new LoanAccount(custid,loanaccno, amt, loanid,monthlyinterest,monthlyprinciple,monthlytotalpay, year*12, totalpay, new Date());
+					LoanAccountDB.insertAccount(la);				
+					System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
+					la.printLoanDetails();
 				}
-				else
-				{
-					System.out.println("account holder name is wrong");check=false;break;
-				}
+				else 
+					System.out.println("Sorry max loan limit is Rs5,00,000 but you already take Rs"+accbal);
+				
+			}
+			else
+			{
+				System.out.println("account holder name is wrong");
 			}
 		}
-		if(check==true)
+		else
 			System.out.println("this details is not available");
 	}
 	
 	public void viewTransactionDetails()
 	{
-		boolean check=true;
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter the Account Number to view Transaction details...");
 		long accno=sc.nextLong();sc.nextLine();
 		System.out.println("Enter the customer name");
 		String name=sc.nextLine();
-		ArrayList<Customer> list=DataClass.customer;
-		for(Object ob:list)
+		Account acc=LoanAccountDB.selectAccount(accno);
+		if(acc==null)
 		{
-			Customer cs=(Customer)ob;	
-			for(int i=0;i<cs.getAccount().size();i++)
-			{
-				if(cs.getAccount().get(i).getAccno()==accno)
-				{
-					check=false;
-					if(cs.getName().equalsIgnoreCase(name))
-					{
-						System.out.println("Transaction History of AccNo="+cs.getAccount().get(i).getAccno());
-						System.out.println("S.no  Last_balance     Withdraw_Amount  Deposit_Amount   Current_Balance  transaction_date");
-						cs.getAccount().get(i).printTrans_History();break;
-					}
-					else
-					{
-						System.out.println("Sorry account holder name is wrong...");break;
-					}
-				}
-			}
-			if(check==false)
-				break;
+			acc=SavingsAccountDB.selectAccount(accno);	
 		}
-		if(check==true)
+		if(acc!=null)
+		{
+			String cname=CustomerDB.selectCustomer(acc.getCustid()).getName();
+			if(cname.equalsIgnoreCase(name))
+			{
+				System.out.println("Transaction History of AccNo="+acc.getAccno());
+				System.out.println("Last_balance     Withdraw_Amount  Deposit_Amount   Current_Balance  transaction_date");
+				TransactionDB.printTransactionDetails(acc.getAccno());
+			}
+			else
+			{
+				System.out.println("Sorry account holder name is wrong...");
+			}
+		}
+		else
 			System.out.println("Sorry this account number is wrong..");
 	}
 	public void viewLoanDetails()
 	{
-		boolean check=true;
+		
 		Scanner sc=new Scanner(System.in);
 		System.out.println("Enter the customer id ");
 		String custid=sc.nextLine();
 		System.out.println("Enter your customer name");
 		String pass=sc.nextLine();
-		ArrayList<Customer> list=DataClass.customer;
-		//while(list==null)
-			boolean isloan=false;
-			for(Object ob:list)
+		Customer cs=CustomerDB.selectCustomer(custid);
+		if(cs!=null)
+		{	
+			if(cs.getName().equalsIgnoreCase(pass))
 			{
-				Customer cs=(Customer)ob;
-				if(cs.getUserid().equals(custid))
+				ArrayList<Account> loan=LoanAccountDB.selectAccount(custid);
+				double sumofaccbal=0,monthlyinterest=0,monthlyprinciple=0,monthlytotalpay=0,total=0;
+				if(loan.size()>0)
 				{	
-					check=false;
-					if(cs.getName().equalsIgnoreCase(pass))
+					System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
+					//15,15,11,18,19,21,14,14
+					for(int i=0;i<loan.size();i++)
 					{
-						double sumofaccbal=0,monthlyinterest=0,monthlyprinciple=0,monthlytotalpay=0,total=0;
-						if(cs.getAccount().size()>1)
-							System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-							//15,15,11,18,19,21,14,14
-						for(int i=1;i<cs.getAccount().size();i++)
-						{
-							LoanAccount ac=(LoanAccount)cs.getAccount().get(i);
-							ac.printLoanDetails();
-							sumofaccbal+=ac.getAccbal();
-							monthlyinterest+=ac.getMonthlyInterest();
-							monthlyprinciple+=ac.getMonthlyprinciple();
-							monthlytotalpay+=ac.getMonthlytotalpay();
-							total+=ac.getTotalpay();
-							isloan=true;
-						}
-						if(isloan==true)
-						{
-							System.out.println("----------------------------------------------------------------------------------------------------------------------------------------");
-							System.out.print("Total          ");
-							System.out.print(sumofaccbal);
-							String str=""+sumofaccbal;
-							for(int i=str.length();i<26;i++)
-								System.out.print(" ");
-							System.out.print(monthlyinterest);
-							str=""+monthlyinterest;
-							for(int i=str.length();i<18;i++)
-								System.out.print(" ");
-							System.out.print(monthlyprinciple);
-							str=""+monthlyprinciple;
-							for(int i=str.length();i<19;i++)
-								System.out.print(" ");
-							System.out.print(monthlytotalpay);
-							str=""+monthlytotalpay;
-							for(int i=str.length();i<35;i++)
-								System.out.print(" ");
-							System.out.print(total);
-							str=""+total;
-							for(int i=str.length();i<14;i++)
-								System.out.print(" ");
-							System.out.println();
-						}
-						/*else if(isloan==false)
-							System.out.println("this customer has no loan");
-					*/
+						LoanAccount ac=(LoanAccount)loan.get(i);
+						ac.printLoanDetails();
+						sumofaccbal+=ac.getAccbal();
+						sumofaccbal=(double)Math.round(sumofaccbal*100)/100;
+						monthlyinterest+=ac.getMonthlyInterest();
+						monthlyprinciple+=ac.getMonthlyprinciple();
+						monthlytotalpay+=ac.getMonthlytotalpay();
+						total+=ac.getTotalpay();
+						
 					}
-					else
-					{
-						System.out.println("Sorry customer name is incorrect...");
-						break;
-					}
-				}					
+					System.out.println("----------------------------------------------------------------------------------------------------------------------------------------");
+					System.out.print("Total          ");
+					System.out.print(sumofaccbal);
+					String str=""+sumofaccbal;
+					for(int i=str.length();i<26;i++)
+						System.out.print(" ");
+					System.out.print(monthlyinterest);
+					str=""+monthlyinterest;
+					for(int i=str.length();i<18;i++)
+						System.out.print(" ");
+					System.out.print(monthlyprinciple);
+					str=""+monthlyprinciple;
+					for(int i=str.length();i<19;i++)
+						System.out.print(" ");
+					System.out.print(monthlytotalpay);
+					str=""+monthlytotalpay;
+					for(int i=str.length();i<35;i++)
+						System.out.print(" ");
+					System.out.print(total);
+					str=""+total;
+					for(int i=str.length();i<14;i++)
+						System.out.print(" ");
+					System.out.println();
+				}
+				else
+					System.out.println("Sorry this cutomer has no loan..");
 			}
-			if(check==true)
-				System.out.println("Customer id is incorrect...");
-			//list=(ArrayList)ois.readObject();
+			else
+			{
+				System.out.println("Sorry customer name is incorrect...");
+			}
+		}					
+		else
+			System.out.println("Customer id is invalid...");	
 	}
 	public void viewAllUsers()
 	{
-		ArrayList<Customer> list=DataClass.customer;	
-		if(list.size()==0)
-			System.out.println("Sorry you dont have any customers....");
-		else
-		{	
-			System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-			for(Object ob:list)
-			{
-				Customer cs=(Customer)ob;
-				cs.printCustomer();
-				/*cs.getAccount().get(0).getAccbal();
-				for(int i=1;i<cs.getAccount().size();i++)
-				{
-					cs.getAccount().get(i).printLoanDetails();
-				}	
-				*/				
-			}
-		}
-		
+		CustomerDB.selectAllCustomer();		
 	}
 	public void deposit()
 	{
-		ArrayList<Customer> list=DataClass.customer;
 		Scanner sc=new Scanner(System.in);
-		//System.out.println("Which account you are going to deposit 1.SavingsAccount 2.LoanAccount");
-		//int num=sc.nextInt();sc.nextLine();
 		System.out.println("Enter the accountnumber to deposit");
 		long accno=sc.nextLong();sc.nextLine();
 		System.out.println("Enter the account holder name");
 		String custname=sc.nextLine();
-		boolean check=false,isloan=false;
-		for(int i=0;i<list.size();i++)
-		{
-			Customer cs=list.get(i);
-			for(int j=0;j<cs.getAccount().size();j++)
+		Account acc=SavingsAccountDB.selectAccount(accno);
+		if(acc==null)
+			acc=LoanAccountDB.selectAccount(accno);
+		if(acc!=null)
+		{	String cname=CustomerDB.selectCustomer(acc.getCustid()).getName();
+			if(cname.equalsIgnoreCase(custname))
 			{
-				if(accno==cs.getAccount().get(j).getAccno())
-				{
-					check=true;
-					if(cs.getName().equalsIgnoreCase(custname))
+				if(acc instanceof LoanAccount)
+				{//18,19,20
+					
+					LoanAccount la=(LoanAccount)acc;
+					System.out.println("AccountNumber     MonthlyInterest    MonthlyPrinciple    TotalPay");
+					System.out.print(la.getAccno());
+					for(int k=String.valueOf(la.getAccno()).length();k<18;k++)
+						System.out.print(" ");
+					System.out.print(la.getMonthlyInterest());
+					for(int k=String.valueOf(la.getMonthlyInterest()).length();k<19;k++)
+						System.out.print(" ");
+					System.out.print(la.getMonthlyprinciple());
+					for(int k=String.valueOf(la.getMonthlyprinciple()).length();k<20;k++)
+						System.out.print(" ");
+					System.out.print(la.getMonthlytotalpay());
+					System.out.println();
+					System.out.println("Press 1.To Pay From your SavingsAccount 2.DirectPayment Through Employee");
+					int num=sc.nextInt();sc.nextLine();
+					if(num==1)
 					{
-						if(cs.getAccount().get(j) instanceof LoanAccount)
-						{//18,19,20
-							isloan=true;
-							LoanAccount la=(LoanAccount)cs.getAccount().get(j);
-							System.out.println("AccountNumber     MonthlyInterest    MonthlyPrinciple    TotalPay");
-							System.out.print(la.getAccno());
-							for(int k=String.valueOf(la.getAccno()).length();k<18;k++)
-								System.out.print(" ");
-							System.out.print(la.getMonthlyInterest());
-							for(int k=String.valueOf(la.getMonthlyInterest()).length();k<19;k++)
-								System.out.print(" ");
-							System.out.print(la.getMonthlyprinciple());
-							for(int k=String.valueOf(la.getMonthlyprinciple()).length();k<20;k++)
-								System.out.print(" ");
-							System.out.print(la.getMonthlyInterest()+la.getMonthlyprinciple());
-							System.out.println();
-							System.out.println("Press 1.To Pay From your SavingsAccount 2.DirectPayment Through Employee");
-							int num=sc.nextInt();sc.nextLine();
-							if(num==1)
-							{
-								if(cs.getAccount().get(0).getAccbal()>=((double)Math.ceil(la.getMonthlytotalpay())))
-								{
-									cs.getAccount().get(0).withdraw((double)Math.ceil(la.getMonthlytotalpay()));
-									cs.getAccount().get(j).deposit((double)Math.ceil(la.getMonthlytotalpay()));
-									
-								}
-								else
-								{
-									System.out.println("Sorry you don't have enough balance..");
-								}
-							}
-							else if(num==2)
-							{
-								System.out.println("Account holder need to pay Rs"+Math.ceil(la.getMonthlyInterest()+la.getMonthlyprinciple()));
-								System.out.println("If account holder pay the money please proceed ...");
-								System.out.println("1.Proceed with payment 2.Cancel This Payment");
-								int pay=sc.nextInt();sc.nextLine();
-								if(pay==1)
-								{
-									cs.getAccount().get(j).deposit(Math.ceil(la.getMonthlyInterest()+la.getMonthlyprinciple()));
-			
-								}
-								else
-								{
-									System.out.println("Please pay back the loan pay soon...");break;
-								}
-							}
-							else
-							{
-								System.out.println("Invalid input...");break;
-							}
-							if(la.getAccbal()<1)
-							{
-								cs.getAccount().remove(j);
-								System.out.println("This loan completed Successfully....");break;
-							}
-							else
-							{
-								System.out.println("Still your need to pay the loan for further "+la.getMonth()+" months");break;
-								
-							}
-						}
-						if(isloan==false)
+						SavingsAccount savacc=(SavingsAccount)SavingsAccountDB.selectAccount(la.getCustid());
+						if(savacc.getAccbal()>=((double)Math.ceil(la.getMonthlytotalpay())))
 						{
-							System.out.println("Enter the amount to deposit");
-							double amt=sc.nextDouble();sc.nextLine();
-							cs.getAccount().get(0).deposit(amt);break;
+							savacc.withdraw((double)Math.ceil(la.getMonthlytotalpay()));
+							la.deposit((double)Math.ceil(la.getMonthlytotalpay()));
+							SavingsAccountDB.updateAccount(savacc);
+							LoanAccountDB.updateAccount(la);
+							
+						}
+						else
+						{
+							System.out.println("Sorry you don't have enough balance..");
+						}
+					}
+					else if(num==2)
+					{
+						System.out.println("Account holder need to pay Rs"+Math.ceil(la.getMonthlyInterest()+la.getMonthlyprinciple()));
+						System.out.println("If account holder pay the money please proceed ...");
+						System.out.println("1.Proceed with payment 2.Cancel This Payment");
+						int pay=sc.nextInt();sc.nextLine();
+						if(pay==1)
+						{
+							la.deposit(Math.ceil(la.getMonthlyInterest()+la.getMonthlyprinciple()));
+							LoanAccountDB.updateAccount(la);
+						}
+						else
+						{
+							System.out.println("Please pay back the loan pay soon...");
 						}
 					}
 					else
 					{
-						System.out.println("Sorry account number and account holder name mismatched");
-						break;
+						System.out.println("Invalid input...");
+					}
+					if(la.getAccbal()<1)
+					{
+						LoanAccountDB.deleteAccount(accno);
+						System.out.println("This loan completed Successfully....");
+					}
+					else
+					{
+						System.out.println("Still your need to pay the loan for further "+la.getMonth()+" months");
+						
 					}
 				}
+				else
+				{
+					System.out.println("Enter the amount to deposit");
+					double amt=sc.nextDouble();sc.nextLine();
+					acc.deposit(amt);
+					SavingsAccountDB.updateAccount((SavingsAccount)acc);
+				}
 			}
-		}
-		if(check==false)
-			System.out.println("Sorry this account number is not available...");	
+			else
+			{
+				System.out.println("Sorry account number and account holder name mismatched");
+				
+			}
+	}
+	else
+		System.out.println("Sorry this account number is invalid...");	
 	}
 	public void withdraw()
 	{
@@ -725,40 +656,33 @@ public class Employee implements EmployeeInterface, Serializable{
 		long accno=sc.nextLong();sc.nextLine();
 		System.out.println("Enter the account holder name");
 		String name=sc.nextLine();
-		
-		ArrayList<Customer> list=DataClass.customer;
-		for(int i=0;i<list.size();i++)
-		{
-			Object ob=list.get(i);
-			Customer cs=(Customer)ob;
-			if(cs.getAccount().get(0).getAccno()==accno)
-			{	check=false;	
-				if(name.equalsIgnoreCase(cs.getName()))
+		Account acc=SavingsAccountDB.selectAccount(accno);
+		if(acc!=null)
+		{	
+			String cname=CustomerDB.selectCustomer(acc.getCustid()).getName();
+			if(name.equalsIgnoreCase(cname))
+			{
+				System.out.println("Enter your withdraw amount");
+				double amt=Math.abs(sc.nextDouble());
+				sc.nextLine();
+				if(amt<=acc.getAccbal())
 				{
-					System.out.println("Enter your withdraw amount");
-					double amt=Math.abs(sc.nextDouble());
-					sc.nextLine();
-					Account curr=cs.getAccount().get(0);
-					if(amt<=curr.getAccbal())
-					{
-						curr.withdraw(amt);
-						check=false;
-						break;
-					}
-					else
-					{
-						System.out.println("Sorry your account balance is less than your withdrawal amount..");check=false;break;
-					}
-					
+					acc.withdraw(amt);
+					SavingsAccountDB.updateAccount((SavingsAccount)acc);
 				}
 				else
 				{
-					System.out.println("Sorry name and accno mismatched...");check=false;break;
+					System.out.println("Sorry your account balance is less than your withdrawal amount..");
 				}
 				
 			}
+			else
+			{
+				System.out.println("Sorry name and accno mismatched...");
+			}
+			
 		}
-		if(check==true)
+		else
 			System.out.println("Sorry this account number is wrong..");
 	}
 	public void printLoanRate()
@@ -769,135 +693,6 @@ public class Employee implements EmployeeInterface, Serializable{
 		System.out.println("CarLoan       "+new CarLoan().getLoanRate());
 		System.out.println("BikeLoan      "+new BikeLoan().getLoanRate());
 		System.out.println("PersonalLoan  "+new PersonalLoan().getLoanRate());
-	}
-	public void searchbyname(ArrayList list)
-	{
-		boolean check=true;
-		Scanner sc=new Scanner(System.in);
-		System.out.println("Enter the account holder name");
-		String name=sc.nextLine();
-		for(int i=0;i<list.size();i++)
-		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getName().equalsIgnoreCase(name))
-			{		
-				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-				cs.printCustomer();
-				if(cs.getAccount().size()>1)
-					System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-				for(int j=1;j<cs.getAccount().size();j++)
-				{
-					cs.getAccount().get(j).printLoanDetails();
-				}
-				//System.out.println(cs.getAccount().toString());
-				check=false;break;
-			}
-		}
-		if(check==true)
-			System.out.println("this details is not available");
-	}
-	public void searchbycustid(ArrayList list)
-	{
-		boolean check=true;
-		Scanner sc=new Scanner(System.in);
-		System.out.println("Enter the customerid");
-		String custid=sc.nextLine();
-		for(int i=0;i<list.size();i++)
-		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getUserid().equals(custid))
-			{
-				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-				cs.printCustomer();
-				if(cs.getAccount().size()>1)
-					System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-				for(int j=1;j<cs.getAccount().size();j++)
-				{
-					cs.getAccount().get(j).printLoanDetails();
-				}
-				check=false;break;
-			}
-		}
-		if(check==true)
-			System.out.println("this details is not available");
-	}
-	public void searchbymobile(ArrayList list)
-	{
-		boolean check=true;
-		Scanner sc=new Scanner(System.in);
-		System.out.println("Enter the account holder mobile numer");
-		long acc_mobile=sc.nextLong();sc.nextLine();
-		for(int i=0;i<list.size();i++)
-		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getMobileno()==acc_mobile)
-			{
-				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-				cs.printCustomer();
-				if(cs.getAccount().size()>1)
-					System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-				for(int j=1;j<cs.getAccount().size();j++)
-				{
-					cs.getAccount().get(j).printLoanDetails();
-				}
-				check=false;break;
-			}
-		}
-		if(check==true)
-			System.out.println("this details is not available");
-	}
-	public void searchbyemailid(ArrayList list)
-	{
-		boolean check=true;
-		Scanner sc=new Scanner(System.in);
-		System.out.println("Enter the account holder mailid");
-		String acc_email=sc.nextLine();
-		for(int i=0;i<list.size();i++)
-		{
-			Customer cs=(Customer)list.get(i);
-			if(cs.getEmailid().equalsIgnoreCase(acc_email))
-			{
-				System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-				cs.printCustomer();
-				if(cs.getAccount().size()>1)
-					System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-				for(int j=1;j<cs.getAccount().size();j++)
-				{
-					cs.getAccount().get(j).printLoanDetails();
-				}				check=false;break;
-			}
-		}
-		if(check==true)
-			System.out.println("this details is not available");
-	}
-	
-	public void searchbyaccno(ArrayList list)
-	{
-		boolean check=true;
-		Scanner sc=new Scanner(System.in);
-		System.out.println("Enter the account number");
-		long accno=sc.nextLong();sc.nextLine();
-		for(int i=0;i<list.size();i++)
-		{
-			Customer cs=(Customer)list.get(i);
-			for(Account ac:cs.getAccount())
-			
-			{
-				if(ac.getAccno()==accno)
-				{
-					System.out.println("CustomerId     AccountNumber  AccounBalance    PinNumber      CustomerName   DateOfBirth  MobileNumber   emailid                       ");
-					cs.printCustomer();
-					if(cs.getAccount().size()>1)
-						System.out.println("LoanAccNo      AccountBal     LoanID     InterestPerMonth  PrinciplePerMonth  TotalAmountPerMonth  No_Of_Months  Totalamount   LoanDate");
-					for(int j=1;j<cs.getAccount().size();j++)
-					{
-						cs.getAccount().get(j).printLoanDetails();
-					}				check=false;break;
-				}
-			}
-		}
-		if(check==true)
-			System.out.println("this details is not available");
 	}
 	
 }
